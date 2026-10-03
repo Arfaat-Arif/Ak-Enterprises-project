@@ -92,8 +92,23 @@ export function HeroBanner() {
             custom={0.1}
             className="font-display font-bold tracking-tight text-3xl sm:text-5xl text-white mb-6 leading-[0.95]"
           >
-            {hero.title.split(' ').slice(0, 2).join(' ')}{' '}
-            <span className="text-gradient-blue">{hero.title.split(' ').slice(2).join(' ') || 'Infrastructure'}</span>
+            {(() => {
+              const titleWords = hero.title.trim().split(/\s+/).filter(Boolean);
+              const titleLead =
+                titleWords.length > 2
+                  ? titleWords.slice(0, 2).join(' ')
+                  : titleWords.slice(0, -1).join(' ');
+              const titleAccent =
+                titleWords.length > 2
+                  ? titleWords.slice(2).join(' ')
+                  : (titleWords[titleWords.length - 1] ?? hero.title);
+              return (
+                <>
+                  {titleLead ? <>{titleLead}{' '}</> : null}
+                  <span className="text-gradient-blue">{titleAccent}</span>
+                </>
+              );
+            })()}
             <br />
             {hero.description ? hero.description.split(' ').slice(0, 3).join(' ') : 'Built for the'}{' '}
             <span className="relative inline-block">

@@ -5,6 +5,7 @@ import { createAdminProduct, deleteAdminProduct, deleteAdminProductImage, getAdm
 import { getAdminCategories } from '../services/categoryService';
 import type { Product, ProductPayload, ProductSpec } from '../types/product.types';
 import type { Category } from '../types/category.types';
+import { getApiErrorMessage } from '../utils/apiError';
 
 const emptySpec: ProductSpec = { label: '', value: '' };
 const emptyForm: ProductPayload = {
@@ -51,7 +52,7 @@ export function AdminProductsPage() {
       const data = await getAdminProducts();
       setItems(data);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to load products.');
+      setError(getApiErrorMessage(requestError, 'Unable to load products.'));
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +93,7 @@ export function AdminProductsPage() {
       resetForm();
       await loadItems();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to save product.');
+      setError(getApiErrorMessage(requestError, 'Unable to save product.'));
     } finally {
       setIsSaving(false);
     }
@@ -117,7 +118,7 @@ export function AdminProductsPage() {
         sortOrder: fullProduct.sortOrder,
       });
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to load product details.');
+      setError(getApiErrorMessage(requestError, 'Unable to load product details.'));
     }
   }
 
@@ -130,17 +131,18 @@ export function AdminProductsPage() {
       if (editingId === id) resetForm();
       await loadItems();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to delete product.');
+      setError(getApiErrorMessage(requestError, 'Unable to delete product.'));
     }
   }
 
   async function handleDeleteImage(productId: number, imageId: number) {
+    if (!window.confirm('Delete this image? This cannot be undone.')) return;
     try {
       await deleteAdminProductImage(productId, imageId);
       setMessage('Image deleted.');
       await loadItems();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to delete image.');
+      setError(getApiErrorMessage(requestError, 'Unable to delete image.'));
     }
   }
 
@@ -210,16 +212,16 @@ export function AdminProductsPage() {
                         <p className="text-xs text-slate-500">{item.shortDescription}</p>
                         <p className="text-xs text-slate-500">{item.isFeatured ? '• Featured' : ''} {item.isActive ? '• Active' : '• Inactive'}</p>
                         {item.images.length > 0 && (
-                          <div className="mt-2 flex gap-1">
+                          <div className="mt-2 flex flex-wrap gap-2">
                             {item.images.map((img) => (
-                              <div key={img.id} className="relative group">
-                                <img src={img.url} alt="" className="h-12 w-12 object-cover rounded border border-slate-200" />
+                              <div key={img.id} className="flex flex-col items-center gap-1">
+                                <img src={img.url} alt="" className="h-14 w-14 object-contain rounded border border-slate-200 bg-slate-50" />
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteImage(item.id, img.id)}
-                                  className="absolute inset-0 bg-red-500/80 text-white text-xs opacity-0 group-hover:opacity-100 flex items-center justify-center rounded"
+                                  className="rounded bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 hover:bg-red-200"
                                 >
-                                  ×
+                                  Delete
                                 </button>
                               </div>
                             ))}

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { createAdminBrand, deleteAdminBrand, getAdminBrands, updateAdminBrand } from '../services/brandService';
 import type { Brand, BrandPayload } from '../types/brand.types';
+import { getApiErrorMessage } from '../utils/apiError';
 
 const emptyForm: BrandPayload = {
     name: '',
@@ -39,7 +40,7 @@ export function AdminBrandsPage() {
             const data = await getAdminBrands();
             setItems(data);
         } catch (requestError) {
-            setError(requestError instanceof Error ? requestError.message : 'Unable to load brands.');
+            setError(getApiErrorMessage(requestError, 'Unable to load brands.'));
         } finally {
             setIsLoading(false);
         }
@@ -71,7 +72,7 @@ export function AdminBrandsPage() {
             resetForm();
             await loadItems();
         } catch (requestError) {
-            setError(requestError instanceof Error ? requestError.message : 'Unable to save brand.');
+            setError(getApiErrorMessage(requestError, 'Unable to save brand.'));
         } finally {
             setIsSaving(false);
         }
@@ -97,7 +98,7 @@ export function AdminBrandsPage() {
             if (editingId === id) resetForm();
             await loadItems();
         } catch (requestError) {
-            setError(requestError instanceof Error ? requestError.message : 'Unable to delete brand.');
+            setError(getApiErrorMessage(requestError, 'Unable to delete brand.'));
         }
     }
 

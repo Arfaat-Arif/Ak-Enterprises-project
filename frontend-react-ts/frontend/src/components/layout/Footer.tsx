@@ -1,47 +1,44 @@
 import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin, ChevronRight } from 'lucide-react';
+import { useInView } from 'framer-motion';
+import { useRef } from 'react';
 import { ROUTES } from '../../config/routes.config';
 import { useSiteSettings } from '../../context/SiteSettingsContext';
-
-const COLUMNS = [
-  {
-    heading: 'Products',
-    links: [
-      { label: 'Handheld Radios', to: `${ROUTES.products}?category=hand-held-radios` },
-      { label: 'Base Stations', to: `${ROUTES.products}?category=base-vehicle-stations` },
-      { label: 'CCTV Systems', to: ROUTES.securitySolutions },
-      { label: 'Repeaters', to: ROUTES.products },
-      { label: 'Accessories', to: ROUTES.products },
-    ],
-  },
-  {
-    heading: 'Industries',
-    links: [
-      { label: 'Public Safety', to: ROUTES.securitySolutions },
-      { label: 'Energy & Utilities', to: ROUTES.securitySolutions },
-      { label: 'Manufacturing', to: ROUTES.securitySolutions },
-      { label: 'Transport & Logistics', to: ROUTES.securitySolutions },
-    ],
-  },
-  {
-    heading: 'Company',
-    links: [
-      { label: 'About Us', to: ROUTES.about },
-      { label: 'Request a Quote', to: ROUTES.contact },
-      { label: 'Government Tenders', to: ROUTES.contact },
-      { label: 'Warranty & Support', to: ROUTES.contact },
-      { label: 'Resources & Insights', to: ROUTES.about },
-    ],
-  },
-];
-
-const BRANDS = ['Motorola', 'Hytera', 'ICOM', 'Baofeng', 'Hikvision', 'Dahua'];
+import { useFetch } from '../../hooks/useFetch';
+import { getFooterLinks } from '../../services/footerLinkService';
+import { getSocialLinks } from '../../services/socialLinkService';
+import { getBrands } from '../../services/brandService';
+import { Loader } from '../common/Loader';
+import { ErrorState } from '../common/ErrorState';
 
 export function Footer() {
   const { settings } = useSiteSettings();
+  const footerRef = useRef<HTMLElement>(null);
+  const inView = useInView(footerRef, { once: true, margin: '200px 0px' });
+  const { data: footerLinks, loading: footerLoading, error: footerError, refetch: refetchFooter } = useFetch(
+    () => getFooterLinks(),
+    [],
+    { enabled: inView },
+  );
+  const { data: socialLinks } = useFetch(() => getSocialLinks(), [], { enabled: inView });
+  const { data: brands } = useFetch(() => getBrands(), [], { enabled: inView });
+
+  // Group footer links by group_name
+  const groupedLinks = footerLinks?.reduce((acc, link) => {
+    if (!acc[link.groupName]) {
+      acc[link.groupName] = [];
+    }
+    acc[link.groupName].push(link);
+    return acc;
+  }, {} as Record<string, typeof footerLinks>) || {};
+
+  const columns = Object.entries(groupedLinks).map(([groupName, links]) => ({
+    heading: groupName,
+    links: links.map(link => ({ label: link.label, to: link.url })),
+  }));
 
   return (
-    <footer className="relative bg-ak-navy-950 border-t border-white/5 overflow-hidden">
+    <footer ref={footerRef} className="relative bg-ak-navy-950 border-t border-white/5 overflow-hidden">
       {/* Subtle background grid */}
       <div className="absolute inset-0 bg-dots opacity-30 pointer-events-none" />
 
@@ -84,42 +81,72 @@ export function Footer() {
           </div>
 
           {/* Link columns */}
-          {COLUMNS.map((col) => (
-            <div key={col.heading}>
-              <h4 className="font-display font-bold text-white text-sm uppercase tracking-widest mb-4">
-                {col.heading}
-              </h4>
-              <ul className="flex flex-col gap-2.5">
-                {col.links.map((link) => (
-                  <li key={link.label}>
-                    <Link
-                      to={link.to}
-                      className="group flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition-colors duration-150"
-                    >
-                      <ChevronRight
-                        size={12}
-                        className="text-ak-blue opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all duration-150"
-                      />
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+          {!inView || footerLoading ? (
+            <div className="lg:col-span-3">
+              {inView ? <Loader label="Loading footer links..." /> : null}
             </div>
-          ))}
+          ) : footerError ? (
+            <div className="lg:col-span-3">
+              <ErrorState message="Couldn't load footer links." onRetry={refetchFooter} />
+            </div>
+          ) : columns.length === 0 ? (
+            <div className="lg:col-span-3">
+              <p className="text-slate-500 text-sm">No footer links available.</p>
+            </div>
+          ) : (
+            columns.map((col) => (
+              <div key={col.heading}>
+                <h4 className="font-display font-bold text-white text-sm uppercase tracking-widest mb-4">
+                  {col.heading}
+                </h4>
+                <ul className="flex flex-col gap-2.5">
+                  {col.links.map((link) => (
+                    <li key={link.label}>
+                      <Link
+                        to={link.to}
+                        className="group flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition-colors duration-150"
+                      >
+                        <ChevronRight
+                          size={12}
+                          className="text-ak-blue opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all duration-150"
+                        />
+                        {link.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))
+          )}
         </div>
 
         {/* Brands row */}
-        <div className="border-t border-white/5 pt-8 mb-8">
-          <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-4">Authorized Brands</p>
-          <div className="flex flex-wrap gap-2">
-            {BRANDS.map((brand) => (
-              <span key={brand} className="px-3 py-1.5 bg-white/5 border border-white/10 rounded text-xs font-display font-bold uppercase tracking-wider text-slate-300">
-                {brand}
-              </span>
-            ))}
+        {brands && brands.length > 0 && (
+          <div className="border-t border-white/5 pt-8 mb-8">
+            <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-4">Authorized Brands</p>
+            <div className="flex flex-wrap gap-2">
+              {brands.map((brand) => (
+                <span key={brand.id} className="px-3 py-1.5 bg-white/5 border border-white/10 rounded text-xs font-display font-bold uppercase tracking-wider text-slate-300">
+                  {brand.name}
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Social links row */}
+        {socialLinks && socialLinks.length > 0 && (
+          <div className="border-t border-white/5 pt-8 mb-8">
+            <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-4">Follow Us</p>
+            <div className="flex flex-wrap gap-3">
+              {socialLinks.map((social) => (
+                <a key={social.id} href={social.url} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-white/5 border border-white/10 rounded text-xs font-semibold text-slate-300 hover:bg-white/10 hover:text-white transition-colors">
+                  {social.label}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Bottom bar */}
         <div className="border-t border-white/5 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">

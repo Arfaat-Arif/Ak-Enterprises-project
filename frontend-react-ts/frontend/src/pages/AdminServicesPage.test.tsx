@@ -22,6 +22,7 @@ describe('AdminServicesPage', () => {
       isAuthenticated: true,
       login: vi.fn(),
       logout: vi.fn(),
+      clearSession: vi.fn(),
     });
   });
 

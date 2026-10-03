@@ -25,7 +25,8 @@ function updateDocumentMetadata(settings: SiteSettings | null): void {
             favicon.href = settings.faviconUrl;
             favicon.type = 'image/*';
         } else {
-            favicon.removeAttribute('href');
+            favicon.href = '/favicon.svg';
+            favicon.type = 'image/svg+xml';
         }
     }
 }

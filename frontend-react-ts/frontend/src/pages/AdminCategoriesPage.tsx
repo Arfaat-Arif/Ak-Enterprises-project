@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { createAdminCategory, deleteAdminCategory, getAdminCategories, updateAdminCategory } from '../services/categoryService';
 import type { Category, CategoryPayload } from '../types/category.types';
+import { getApiErrorMessage } from '../utils/apiError';
 
 const emptyForm: CategoryPayload = {
   name: '',
@@ -39,7 +40,7 @@ export function AdminCategoriesPage() {
       const data = await getAdminCategories();
       setItems(data);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to load categories.');
+      setError(getApiErrorMessage(requestError, 'Unable to load categories.'));
     } finally {
       setIsLoading(false);
     }
@@ -71,7 +72,7 @@ export function AdminCategoriesPage() {
       resetForm();
       await loadItems();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to save category.');
+      setError(getApiErrorMessage(requestError, 'Unable to save category.'));
     } finally {
       setIsSaving(false);
     }
@@ -97,7 +98,7 @@ export function AdminCategoriesPage() {
       if (editingId === id) resetForm();
       await loadItems();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to delete category.');
+      setError(getApiErrorMessage(requestError, 'Unable to delete category.'));
     }
   }
 

@@ -41,7 +41,7 @@ Laravel 11 API backend for the A.K Enterprises website (telecom/radio/CCTV equip
    MAIL_PORT=2525
    MAIL_USERNAME=your_mailtrap_username
    MAIL_PASSWORD=your_mailtrap_password
-   CONTACT_NOTIFICATION_EMAIL=admin@akenterprises.test
+   CONTACT_NOTIFICATION_EMAIL=notifications@example.com
    ```
 
 5. **Configure Sanctum for frontend development**
@@ -70,11 +70,13 @@ Laravel 11 API backend for the A.K Enterprises website (telecom/radio/CCTV equip
 
 ## Admin Login
 
-After seeding, use these credentials to log in to the admin panel:
-- **Email:** `admin@akenterprises.test`
-- **Password:** `password123`
+Admin credentials must be configured locally and must not be committed to the repository.
 
-**⚠️ Important:** Change this password in production!
+1. Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in your local `.env` (see `.env.example` placeholders).
+2. Run `php artisan db:seed --class=UserSeeder` to create or update the admin account.
+3. Sign in at the admin login page using those local values.
+
+Never commit real passwords to documentation or source control.
 
 ## Database Schema
 
@@ -225,8 +227,8 @@ POST http://localhost:8000/api/admin/login
 Content-Type: application/json
 
 {
-  "email": "admin@akenterprises.test",
-  "password": "password123"
+  "email": "<your-local-ADMIN_EMAIL>",
+  "password": "<your-local-ADMIN_PASSWORD>"
 }
 ```
 Save the returned `token`.

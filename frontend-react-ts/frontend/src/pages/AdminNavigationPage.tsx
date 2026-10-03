@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { createAdminNavigation, deleteAdminNavigation, getAdminNavigation, updateAdminNavigation } from '../services/navigationService';
 import type { NavigationItem, NavigationItemPayload } from '../types/navigation.types';
+import { getApiErrorMessage } from '../utils/apiError';
 
 const emptyForm: NavigationItemPayload = {
   label: '',
@@ -39,7 +40,7 @@ export function AdminNavigationPage() {
       const data = await getAdminNavigation();
       setItems(data);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to load navigation items.');
+      setError(getApiErrorMessage(requestError, 'Unable to load navigation items.'));
     } finally {
       setIsLoading(false);
     }
@@ -67,7 +68,7 @@ export function AdminNavigationPage() {
       resetForm();
       await loadItems();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to save navigation item.');
+      setError(getApiErrorMessage(requestError, 'Unable to save navigation item.'));
     } finally {
       setIsSaving(false);
     }
@@ -94,7 +95,7 @@ export function AdminNavigationPage() {
       if (editingId === id) resetForm();
       await loadItems();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to delete navigation item.');
+      setError(getApiErrorMessage(requestError, 'Unable to delete navigation item.'));
     }
   }
 

@@ -104,9 +104,9 @@ php artisan storage:link
 php artisan serve
 ```
 
-**Default Admin Credentials:**
-- Email: `admin@akenterprises.test`
-- Password: `password123`
+**Admin credentials:**
+Admin credentials must be configured locally (see `ADMIN_EMAIL` / `ADMIN_PASSWORD` in `.env`) and must not be committed to the repository.
+After setting those variables, run `php artisan db:seed --class=UserSeeder` to create or update the local admin account.
 
 **API Documentation:** See [backend-laravel/backend/README_BACKEND.md](backend-laravel/backend/README_BACKEND.md)
 
@@ -178,7 +178,7 @@ Use Postman/Insomnia to test:
 1. **Login**
    ```
    POST http://localhost:8000/api/admin/login
-   Body: { "email": "admin@akenterprises.test", "password": "password123" }
+   Body: { "email": "<your-local-ADMIN_EMAIL>", "password": "<your-local-ADMIN_PASSWORD>" }
    ```
 
 2. **Use token in requests**
@@ -239,7 +239,9 @@ SANCTUM_STATEFUL_DOMAINS=localhost:5173
 FRONTEND_URL=http://localhost:5173
 
 MAIL_MAILER=smtp
-CONTACT_NOTIFICATION_EMAIL=admin@akenterprises.test
+CONTACT_NOTIFICATION_EMAIL=notifications@example.com
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=change-me-locally
 ```
 
 ## Deployment Checklist
@@ -251,7 +253,7 @@ CONTACT_NOTIFICATION_EMAIL=admin@akenterprises.test
 - [ ] Configure proper SMTP service for email
 - [ ] Update `SANCTUM_STATEFUL_DOMAINS` for your domain
 - [ ] Enable HTTPS and update CORS settings
-- [ ] Change admin password from default
+- [ ] Configure a strong local/production admin password via `ADMIN_PASSWORD` (never commit it)
 - [ ] Set strong `APP_KEY` in backend .env
 - [ ] Enable database backups
 - [ ] Set up CI/CD pipeline (GitHub Actions, etc.)

@@ -18,6 +18,12 @@ class DatabaseSeeder extends Seeder
             ServiceSeeder::class,
             CategorySeeder::class,
             ProductSeeder::class,
+            CaseStudySeeder::class,
+            InsightSeeder::class,
+            TrustStatSeeder::class,
+            FooterLinkSeeder::class,
+            SocialLinkSeeder::class,
+            PageContentSeeder::class,
         ]);
     }
 }

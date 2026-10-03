@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { createAdminHeroSection, deleteAdminHeroSection, getAdminHeroSections, updateAdminHeroSection } from '../services/heroService';
 import type { HeroSection, HeroSectionPayload } from '../types/hero.types';
+import { getApiErrorMessage } from '../utils/apiError';
 
 const emptyForm: HeroSectionPayload = {
     title: '',
@@ -44,7 +45,7 @@ export function AdminHeroPage() {
             const data = await getAdminHeroSections();
             setItems(data);
         } catch (requestError) {
-            setError(requestError instanceof Error ? requestError.message : 'Unable to load hero sections.');
+            setError(getApiErrorMessage(requestError, 'Unable to load hero sections.'));
         } finally {
             setIsLoading(false);
         }
@@ -81,7 +82,7 @@ export function AdminHeroPage() {
             resetForm();
             await loadItems();
         } catch (requestError) {
-            setError(requestError instanceof Error ? requestError.message : 'Unable to save hero section.');
+            setError(getApiErrorMessage(requestError, 'Unable to save hero section.'));
         } finally {
             setIsSaving(false);
         }
@@ -111,7 +112,7 @@ export function AdminHeroPage() {
             if (editingId === id) resetForm();
             await loadItems();
         } catch (requestError) {
-            setError(requestError instanceof Error ? requestError.message : 'Unable to delete hero section.');
+            setError(getApiErrorMessage(requestError, 'Unable to delete hero section.'));
         }
     }
 

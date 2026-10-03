@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { Award, Users, Package, Clock } from 'lucide-react';
+import { useFetch } from '../../hooks/useFetch';
+import { getTrustStats } from '../../services/trustStatService';
+import { Loader } from '../common/Loader';
+import { ErrorState } from '../common/ErrorState';
 
 interface Stat {
   icon: React.ElementType;
@@ -10,12 +14,38 @@ interface Stat {
   sub: string;
 }
 
-const STATS: Stat[] = [
-  { icon: Package, value: 500, suffix: '+', label: 'Products Available', sub: 'Across all categories' },
-  { icon: Users, value: 200, suffix: '+', label: 'Enterprise Clients', sub: 'Government & private sector' },
-  { icon: Award, value: 15, suffix: '+', label: 'Years Experience', sub: 'In telecom supply chain' },
-  { icon: Clock, value: 99, suffix: '%', label: 'Order Fulfilment', sub: 'On-time delivery rate' },
-];
+const ICON_MAP: Record<string, React.ElementType> = {
+  'product': Package,
+  'products': Package,
+  'client': Users,
+  'clients': Users,
+  'customer': Users,
+  'customers': Users,
+  'year': Award,
+  'years': Award,
+  'experience': Award,
+  'order': Clock,
+  'orders': Clock,
+  'delivery': Clock,
+  'fulfilment': Clock,
+};
+
+function getIconForLabel(label: string): React.ElementType {
+  const lowerLabel = label.toLowerCase();
+  for (const [key, icon] of Object.entries(ICON_MAP)) {
+    if (lowerLabel.includes(key)) return icon;
+  }
+  return Award;
+}
+
+function getSubForLabel(label: string): string {
+  const lowerLabel = label.toLowerCase();
+  if (lowerLabel.includes('product')) return 'Across all categories';
+  if (lowerLabel.includes('client') || lowerLabel.includes('customer')) return 'Government & private sector';
+  if (lowerLabel.includes('year') || lowerLabel.includes('experience')) return 'In telecom supply chain';
+  if (lowerLabel.includes('order') || lowerLabel.includes('delivery') || lowerLabel.includes('fulfilment')) return 'On-time delivery rate';
+  return '';
+}
 
 function AnimatedCounter({ value, suffix, inView }: { value: number; suffix: string; inView: boolean }) {
   const [count, setCount] = useState(0);
@@ -50,7 +80,71 @@ function AnimatedCounter({ value, suffix, inView }: { value: number; suffix: str
 
 export function TrustBar() {
   const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: '-80px' });
+  const inView = useInView(ref, { once: true, margin: '200px 0px' });
+  const { data: trustStats, loading, error, refetch } = useFetch(
+    () => getTrustStats(),
+    [],
+    { enabled: inView },
+  );
+
+  if (!inView || loading) {
+    return (
+      <section ref={ref} className="relative py-20 bg-[#ebece9] overflow-hidden border-y border-black/10">
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-ak-blue/30 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+        <div className="absolute inset-0 bg-dots opacity-20 pointer-events-none" />
+        <div className="container-ak relative z-10">
+          <div className="text-center mb-12">
+            <p className="text-xs text-ak-blue uppercase tracking-[0.2em] font-semibold mb-2">Our network</p>
+            <h2 className="font-display font-bold text-ak-navy-900 text-3xl sm:text-4xl">Trusted by Government & Enterprise</h2>
+          </div>
+          {inView ? <Loader label="Loading statistics..." /> : null}
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section ref={ref} className="relative py-20 bg-[#ebece9] overflow-hidden border-y border-black/10">
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-ak-blue/30 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+        <div className="absolute inset-0 bg-dots opacity-20 pointer-events-none" />
+        <div className="container-ak relative z-10">
+          <div className="text-center mb-12">
+            <p className="text-xs text-ak-blue uppercase tracking-[0.2em] font-semibold mb-2">Our network</p>
+            <h2 className="font-display font-bold text-ak-navy-900 text-3xl sm:text-4xl">Trusted by Government & Enterprise</h2>
+          </div>
+          <ErrorState message="Couldn't load statistics." onRetry={refetch} />
+        </div>
+      </section>
+    );
+  }
+
+  if (!trustStats || trustStats.length === 0) {
+    return (
+      <section ref={ref} className="relative py-20 bg-[#ebece9] overflow-hidden border-y border-black/10">
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-ak-blue/30 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+        <div className="absolute inset-0 bg-dots opacity-20 pointer-events-none" />
+        <div className="container-ak relative z-10">
+          <div className="text-center mb-12">
+            <p className="text-xs text-ak-blue uppercase tracking-[0.2em] font-semibold mb-2">Our network</p>
+            <h2 className="font-display font-bold text-ak-navy-900 text-3xl sm:text-4xl">Trusted by Government & Enterprise</h2>
+          </div>
+          <p className="text-slate-600 text-center">No statistics available yet.</p>
+        </div>
+      </section>
+    );
+  }
+
+  const stats: Stat[] = trustStats.map(stat => ({
+    icon: getIconForLabel(stat.label),
+    value: stat.value,
+    suffix: stat.suffix || '',
+    label: stat.label,
+    sub: getSubForLabel(stat.label),
+  }));
 
   return (
     <section ref={ref} className="relative py-20 bg-[#ebece9] overflow-hidden border-y border-black/10">
@@ -79,7 +173,7 @@ export function TrustBar() {
 
         {/* Stats grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {STATS.map(({ icon: Icon, value, suffix, label, sub }, i) => (
+          {stats.map(({ icon: Icon, value, suffix, label, sub }, i) => (
             <motion.div
               key={label}
               initial={{ opacity: 0, y: 30 }}

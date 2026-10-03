@@ -1,10 +1,9 @@
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, ShieldCheck, RadioTower, Factory, Landmark, Truck, Flame } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { getIndustries } from '../../services/industryService';
 import type { Industry } from '../../types/industry.types';
-import * as lucideIcons from 'lucide-react';
 
 function IndustryDestination({ url, children }: { url: string | null; children: ReactNode }) {
     if (!url) {
@@ -30,12 +29,12 @@ function IndustryDestination({ url, children }: { url: string | null; children: 
 }
 
 const FALLBACK_ICONS = {
-    ShieldCheck: lucideIcons.ShieldCheck,
-    RadioTower: lucideIcons.RadioTower,
-    Factory: lucideIcons.Factory,
-    Landmark: lucideIcons.Landmark,
-    Truck: lucideIcons.Truck,
-    Flame: lucideIcons.Flame,
+    ShieldCheck,
+    RadioTower,
+    Factory,
+    Landmark,
+    Truck,
+    Flame,
 };
 
 export function IndustriesSection() {
@@ -91,21 +90,21 @@ export function IndustriesSection() {
     return (
         <section className="bg-[#f7f7f5] py-24 sm:py-32">
             <div className="container-ak">
-                <div className="mb-12 flex flex-col justify-between gap-5 md:flex-row md:items-end">
+                <div className="mb-12 flex flex-col justify-between gap-5 md:flex-row md:items-end md:text-left">
                     <div className="max-w-2xl">
                         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-ak-blue">Industry expertise</p>
                         <h2 className="font-display text-5xl font-bold leading-[0.95] text-ak-navy-900 sm:text-6xl">Solutions across industries</h2>
                     </div>
-                    <p className="max-w-sm text-sm leading-7 text-slate-600">Purpose-built communication and security systems for the environments where reliability is non-negotiable.</p>
+                    <p className="max-w-sm text-sm leading-7 text-slate-600 md:text-right">Purpose-built communication and security systems for the environments where reliability is non-negotiable.</p>
                 </div>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {industries.map((industry, index) => {
-                        const IconComponent = industry.icon && industry.icon in FALLBACK_ICONS ? FALLBACK_ICONS[industry.icon as keyof typeof FALLBACK_ICONS] : lucideIcons.ShieldCheck;
+                        const IconComponent = industry.icon && industry.icon in FALLBACK_ICONS ? FALLBACK_ICONS[industry.icon as keyof typeof FALLBACK_ICONS] : ShieldCheck;
 
                         const description = industry.shortDescription ?? industry.description;
 
                         return (
-                            <motion.article key={industry.id} initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-80px' }} transition={{ delay: index * 0.05, duration: 0.5 }} className="group relative min-h-[290px] overflow-hidden bg-[#242424]">
+                            <motion.article key={industry.id} initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-80px' }} transition={{ delay: index * 0.05, duration: 0.5 }} className="group relative min-h-[290px] overflow-hidden bg-[#242424] flex flex-col">
                                 <IndustryDestination url={industry.url}>
                                     {industry.imageUrl ? (
                                         <img src={industry.imageUrl} alt={industry.name} loading="lazy" className="absolute inset-0 h-full w-full object-cover opacity-70 transition duration-700 group-hover:scale-105 group-hover:opacity-85" />

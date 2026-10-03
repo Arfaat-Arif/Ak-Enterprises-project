@@ -2,8 +2,16 @@
 
 use App\Http\Controllers\Api\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Api\Admin\CategoryController as AdminCategoryController;
+use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\InquiryController as AdminInquiryController;
+use App\Http\Controllers\Api\Admin\NewsletterSubscriberController;
 use App\Http\Controllers\Api\Admin\ProductController as AdminProductController;
+use App\Http\Controllers\Api\Admin\CaseStudyController as AdminCaseStudyController;
+use App\Http\Controllers\Api\Admin\InsightController as AdminInsightController;
+use App\Http\Controllers\Api\Admin\TrustStatController as AdminTrustStatController;
+use App\Http\Controllers\Api\Admin\FooterLinkController as AdminFooterLinkController;
+use App\Http\Controllers\Api\Admin\SocialLinkController as AdminSocialLinkController;
+use App\Http\Controllers\Api\Admin\PageContentController as AdminPageContentController;
 use App\Http\Controllers\Api\BrandController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\HeroController;
@@ -14,6 +22,12 @@ use App\Http\Controllers\Api\NavigationController;
 use App\Http\Controllers\Api\NewsletterController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\SiteSettingController;
+use App\Http\Controllers\Api\CaseStudyController;
+use App\Http\Controllers\Api\InsightController;
+use App\Http\Controllers\Api\TrustStatController;
+use App\Http\Controllers\Api\FooterLinkController;
+use App\Http\Controllers\Api\SocialLinkController;
+use App\Http\Controllers\Api\PageContentController;
 use App\Http\Controllers\Api\Admin\BrandController as AdminBrandController;
 use App\Http\Controllers\Api\Admin\HeroController as AdminHeroController;
 use App\Http\Controllers\Api\Admin\IndustryController as AdminIndustryController;
@@ -43,6 +57,12 @@ Route::get('/hero', [HeroController::class, 'index']);
 Route::get('/brands', [BrandController::class, 'index']);
 Route::get('/industries', [IndustryController::class, 'index']);
 Route::get('/services', [ServiceController::class, 'index']);
+Route::get('/case-studies', [CaseStudyController::class, 'index']);
+Route::get('/insights', [InsightController::class, 'index']);
+Route::get('/trust-stats', [TrustStatController::class, 'index']);
+Route::get('/footer-links', [FooterLinkController::class, 'index']);
+Route::get('/social-links', [SocialLinkController::class, 'index']);
+Route::get('/page-content/{pageKey}', [PageContentController::class, 'show']);
 
 /*
 |--------------------------------------------------------------------------
@@ -55,7 +75,10 @@ Route::get('/services', [ServiceController::class, 'index']);
 Route::post('/admin/login', [AdminAuthController::class, 'login']);
 
 Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function () {
+    Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
     Route::post('/logout', [AdminAuthController::class, 'logout']);
+    Route::get('/account', [AdminAuthController::class, 'account']);
+    Route::put('/account', [AdminAuthController::class, 'updateAccount']);
 
     Route::get('/settings', [AdminSiteSettingController::class, 'show']);
     Route::put('/settings', [AdminSiteSettingController::class, 'update']);
@@ -87,6 +110,7 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::delete('/services/{service}', [AdminServiceController::class, 'destroy']);
 
     Route::get('/inquiries', [AdminInquiryController::class, 'index']);
+    Route::get('/newsletter-subscribers', [NewsletterSubscriberController::class, 'index']);
 
     Route::get('/categories', [AdminCategoryController::class, 'index']);
     Route::get('/categories/{category}', [AdminCategoryController::class, 'show']);
@@ -100,4 +124,40 @@ Route::middleware(['auth:sanctum', 'admin'])->prefix('admin')->group(function ()
     Route::put('/products/{product}', [AdminProductController::class, 'update']);
     Route::delete('/products/{product}/images/{image}', [AdminProductController::class, 'destroyImage']);
     Route::delete('/products/{product}', [AdminProductController::class, 'destroy']);
+
+    Route::get('/case-studies', [AdminCaseStudyController::class, 'index']);
+    Route::get('/case-studies/{caseStudy}', [AdminCaseStudyController::class, 'show']);
+    Route::post('/case-studies', [AdminCaseStudyController::class, 'store']);
+    Route::put('/case-studies/{caseStudy}', [AdminCaseStudyController::class, 'update']);
+    Route::delete('/case-studies/{caseStudy}', [AdminCaseStudyController::class, 'destroy']);
+
+    Route::get('/insights', [AdminInsightController::class, 'index']);
+    Route::get('/insights/{insight}', [AdminInsightController::class, 'show']);
+    Route::post('/insights', [AdminInsightController::class, 'store']);
+    Route::put('/insights/{insight}', [AdminInsightController::class, 'update']);
+    Route::delete('/insights/{insight}', [AdminInsightController::class, 'destroy']);
+
+    Route::get('/trust-stats', [AdminTrustStatController::class, 'index']);
+    Route::get('/trust-stats/{trustStat}', [AdminTrustStatController::class, 'show']);
+    Route::post('/trust-stats', [AdminTrustStatController::class, 'store']);
+    Route::put('/trust-stats/{trustStat}', [AdminTrustStatController::class, 'update']);
+    Route::delete('/trust-stats/{trustStat}', [AdminTrustStatController::class, 'destroy']);
+
+    Route::get('/footer-links', [AdminFooterLinkController::class, 'index']);
+    Route::get('/footer-links/{footerLink}', [AdminFooterLinkController::class, 'show']);
+    Route::post('/footer-links', [AdminFooterLinkController::class, 'store']);
+    Route::put('/footer-links/{footerLink}', [AdminFooterLinkController::class, 'update']);
+    Route::delete('/footer-links/{footerLink}', [AdminFooterLinkController::class, 'destroy']);
+
+    Route::get('/social-links', [AdminSocialLinkController::class, 'index']);
+    Route::get('/social-links/{socialLink}', [AdminSocialLinkController::class, 'show']);
+    Route::post('/social-links', [AdminSocialLinkController::class, 'store']);
+    Route::put('/social-links/{socialLink}', [AdminSocialLinkController::class, 'update']);
+    Route::delete('/social-links/{socialLink}', [AdminSocialLinkController::class, 'destroy']);
+
+    Route::get('/page-content', [AdminPageContentController::class, 'index']);
+    Route::get('/page-content/{pageContent}', [AdminPageContentController::class, 'show']);
+    Route::post('/page-content', [AdminPageContentController::class, 'store']);
+    Route::put('/page-content/{pageContent}', [AdminPageContentController::class, 'update']);
+    Route::delete('/page-content/{pageContent}', [AdminPageContentController::class, 'destroy']);
 });

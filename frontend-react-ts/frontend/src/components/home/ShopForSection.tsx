@@ -1,35 +1,70 @@
-import { useRef } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useInView } from 'framer-motion';
 import { ArrowRight, Radio, Shield } from 'lucide-react';
 import { ROUTES } from '../../config/routes.config';
+import { getCategories } from '../../services/categoryService';
+import type { Category } from '../../types/category.types';
 
-const PANELS = [
-  {
-    eyebrow: 'Shop for',
-    title: 'Handheld & Portable Radios',
-    description: 'Military-grade communication devices for field operations, public safety and enterprise deployments.',
-    items: ['Motorola DP Series', 'Hytera PD Series', 'ICOM IC-Series', 'Baofeng UV Series'],
-    categorySlug: 'hand-held-radios',
-    icon: Radio,
-    accent: '#00A878',
-    gradient: 'from-ak-blue/20 via-ak-navy-900 to-ak-navy-950',
-  },
-  {
-    eyebrow: 'Shop for',
-    title: 'Base Stations & Repeaters',
-    description: 'Infrastructure-grade equipment for extended coverage across large facilities and remote areas.',
-    items: ['Base Stations', 'Vehicle-Mounted Radios', 'Repeaters & Amplifiers', 'Antennas & Cabling'],
-    categorySlug: 'base-vehicle-stations',
-    icon: Shield,
-    accent: '#10b981',
-    gradient: 'from-emerald-900/30 via-ak-navy-900 to-ak-navy-950',
-  },
-];
+const ICON_MAP: Record<string, React.ElementType> = {
+  'hand-held-radios': Radio,
+  'base-vehicle-stations': Shield,
+  'cctv-security': Shield,
+  'accessories': Radio,
+};
+
+const ACCENT_MAP: Record<string, string> = {
+  'hand-held-radios': '#00A878',
+  'base-vehicle-stations': '#10b981',
+  'cctv-security': '#10b981',
+  'accessories': '#f59e0b',
+};
 
 export function ShopForSection() {
   const ref = useRef<HTMLElement>(null);
   const inView = useInView(ref, { once: true, margin: '-60px' });
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void getCategories()
+      .then((data) => {
+        setCategories(data.slice(0, 2));
+        setError(null);
+      })
+      .catch(() => {
+        setError('Unable to load categories.');
+        setCategories([]);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) {
+    return (
+      <section ref={ref} className="relative py-24 bg-white overflow-hidden border-y border-black/10">
+        <div className="container-ak">
+          <p className="text-sm text-slate-500">Loading categories...</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section ref={ref} className="relative py-24 bg-white overflow-hidden border-y border-black/10">
+        <div className="container-ak">
+          <p className="text-sm text-red-600">{error}</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (categories.length === 0) {
+    return null;
+  }
 
   return (
     <section ref={ref} className="relative py-24 bg-white overflow-hidden border-y border-black/10">
@@ -54,11 +89,12 @@ export function ShopForSection() {
 
         {/* Panels */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {PANELS.map((panel, i) => {
-            const Icon = panel.icon;
+          {categories.map((category, i) => {
+            const Icon = ICON_MAP[category.slug] || Radio;
+            const accent = ACCENT_MAP[category.slug] || '#00A878';
             return (
               <motion.div
-                key={panel.title}
+                key={category.id}
                 initial={{ opacity: 0, x: i === 0 ? -30 : 30 }}
                 animate={inView ? { opacity: 1, x: 0 } : {}}
                 transition={{ duration: 0.7, delay: i * 0.15, ease: 'easeOut' }}
@@ -67,45 +103,32 @@ export function ShopForSection() {
                 {/* Glow spot */}
                 <div
                   className="absolute -top-20 -right-20 w-48 h-48 rounded-full blur-3xl opacity-20 pointer-events-none"
-                  style={{ background: panel.accent }}
+                  style={{ background: accent }}
                 />
 
                 <div className="relative p-8 sm:p-10 flex flex-col gap-6">
                   {/* Icon badge */}
                   <div
                     className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: `${panel.accent}18`, border: `1px solid ${panel.accent}30` }}
+                    style={{ background: `${accent}18`, border: `1px solid ${accent}30` }}
                   >
-                    <Icon size={24} style={{ color: panel.accent }} />
+                    <Icon size={24} style={{ color: accent }} />
                   </div>
 
                   <div>
-                    <p className="text-xs uppercase tracking-widest font-semibold mb-2" style={{ color: panel.accent }}>
-                      {panel.eyebrow}
+                    <p className="text-xs uppercase tracking-widest font-semibold mb-2" style={{ color: accent }}>
+                      Shop for
                     </p>
                     <h3 className="font-display font-bold text-white text-3xl sm:text-4xl mb-3 leading-tight">
-                      {panel.title}
+                      {category.name}
                     </h3>
-                    <p className="text-slate-400 text-sm leading-relaxed max-w-sm">
-                      {panel.description}
-                    </p>
                   </div>
-
-                  {/* Item list */}
-                  <ul className="grid grid-cols-2 gap-2">
-                    {panel.items.map((item) => (
-                      <li key={item} className="flex items-center gap-2 text-sm text-slate-300">
-                        <span className="w-1 h-1 rounded-full flex-shrink-0" style={{ background: panel.accent }} />
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
 
                   {/* CTA */}
                   <Link
-                    to={`${ROUTES.products}?category=${panel.categorySlug}`}
+                    to={`${ROUTES.products}?category=${category.slug}`}
                     className="inline-flex items-center gap-2 font-display font-bold uppercase tracking-widest text-sm transition-all duration-200 group/link"
-                    style={{ color: panel.accent }}
+                    style={{ color: accent }}
                   >
                     Browse Category
                     <ArrowRight size={15} className="group-hover/link:translate-x-1 transition-transform duration-200" />

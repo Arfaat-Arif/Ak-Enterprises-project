@@ -18,7 +18,7 @@ export function TechnologySection() {
                             <p className="mt-2 font-display text-2xl font-bold">Connect every critical moment.</p>
                         </div>
                     </motion.div>
-                    <motion.div initial={{ opacity: 0, x: 24 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, margin: '-80px' }} transition={{ duration: 0.6, delay: 0.1 }}>
+                    <motion.div initial={{ opacity: 0, x: 24 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, margin: '-80px' }} transition={{ duration: 0.6, delay: 0.1 }} className="flex flex-col">
                         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-ak-blue">Beyond the equipment</p>
                         <h2 className="font-display text-5xl font-bold leading-[0.95] text-ak-navy-900 sm:text-6xl">Technology that keeps you connected</h2>
                         <p className="mt-7 max-w-lg text-base leading-8 text-slate-600">A dependable deployment is more than a device. We help procurement and operations teams select, configure and support communication infrastructure that performs when the environment changes.</p>

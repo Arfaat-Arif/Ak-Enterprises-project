@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { createAdminIndustry, deleteAdminIndustry, getAdminIndustries, updateAdminIndustry } from '../services/industryService';
 import type { Industry, IndustryPayload } from '../types/industry.types';
+import { getApiErrorMessage } from '../utils/apiError';
 
 const emptyForm: IndustryPayload = {
     name: '',
@@ -43,7 +44,7 @@ export function AdminIndustriesPage() {
             const data = await getAdminIndustries();
             setItems(data);
         } catch (requestError) {
-            setError(requestError instanceof Error ? requestError.message : 'Unable to load industries.');
+            setError(getApiErrorMessage(requestError, 'Unable to load industries.'));
         } finally {
             setIsLoading(false);
         }
@@ -75,7 +76,7 @@ export function AdminIndustriesPage() {
             resetForm();
             await loadItems();
         } catch (requestError) {
-            setError(requestError instanceof Error ? requestError.message : 'Unable to save industry.');
+            setError(getApiErrorMessage(requestError, 'Unable to save industry.'));
         } finally {
             setIsSaving(false);
         }
@@ -105,7 +106,7 @@ export function AdminIndustriesPage() {
             if (editingId === id) resetForm();
             await loadItems();
         } catch (requestError) {
-            setError(requestError instanceof Error ? requestError.message : 'Unable to delete industry.');
+            setError(getApiErrorMessage(requestError, 'Unable to delete industry.'));
         }
     }
 

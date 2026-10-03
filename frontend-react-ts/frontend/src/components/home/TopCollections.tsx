@@ -5,40 +5,19 @@ import { ArrowRight, Radio, Shield, Antenna, Settings } from 'lucide-react';
 import { useFeaturedCategories } from '../../hooks/useCategories';
 import { ROUTES } from '../../config/routes.config';
 
-const FALLBACK_CATEGORIES = [
-  {
-    id: 1,
-    name: 'Handheld Radios',
-    slug: 'hand-held-radios',
-    description: 'Motorola, Hytera, ICOM & Baofeng',
-    icon: Radio,
-    accentColor: '#00A878',
-  },
-  {
-    id: 2,
-    name: 'CCTV & Security',
-    slug: 'cctv-security',
-    description: 'Hikvision, Dahua & more',
-    icon: Shield,
-    accentColor: '#10b981',
-  },
-  {
-    id: 3,
-    name: 'Base Stations',
-    slug: 'base-vehicle-stations',
-    description: 'Vehicle & fixed installations',
-    icon: Antenna,
-    accentColor: '#2F7F67',
-  },
-  {
-    id: 4,
-    name: 'Accessories',
-    slug: 'accessories',
-    description: 'Antennas, batteries & more',
-    icon: Settings,
-    accentColor: '#f59e0b',
-  },
-];
+const ICON_MAP: Record<string, React.ElementType> = {
+  'hand-held-radios': Radio,
+  'cctv-security': Shield,
+  'base-vehicle-stations': Antenna,
+  'accessories': Settings,
+};
+
+const ACCENT_MAP: Record<string, string> = {
+  'hand-held-radios': '#00A878',
+  'cctv-security': '#10b981',
+  'base-vehicle-stations': '#2F7F67',
+  'accessories': '#f59e0b',
+};
 
 const containerVariants = {
   hidden: {},
@@ -55,14 +34,15 @@ export function TopCollections() {
   const inView = useInView(ref, { once: true, margin: '-80px' });
   const { data: categories } = useFeaturedCategories();
 
-  const displayItems = categories?.length
-    ? categories.map((c, i) => ({
-      ...c,
-      icon: FALLBACK_CATEGORIES[i % FALLBACK_CATEGORIES.length].icon,
-      accentColor: FALLBACK_CATEGORIES[i % FALLBACK_CATEGORIES.length].accentColor,
-      description: FALLBACK_CATEGORIES[i % FALLBACK_CATEGORIES.length].description,
-    }))
-    : FALLBACK_CATEGORIES.map((c) => ({ ...c, imageUrl: '' }));
+  if (!categories || categories.length === 0) {
+    return null;
+  }
+
+  const displayItems = categories.map((c) => ({
+    ...c,
+    icon: ICON_MAP[c.slug] || Radio,
+    accentColor: ACCENT_MAP[c.slug] || '#00A878',
+  }));
 
   return (
     <section ref={ref} className="relative py-24 bg-[#f7f7f5] overflow-hidden">
@@ -129,7 +109,6 @@ export function TopCollections() {
                       <h3 className="font-display font-bold text-ak-navy-900 text-xl mb-1 group-hover:text-ak-blue transition-all">
                         {item.name}
                       </h3>
-                      <p className="text-slate-500 text-sm">{item.description}</p>
                     </div>
 
                     {/* Arrow */}

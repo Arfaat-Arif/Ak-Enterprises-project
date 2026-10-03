@@ -37,6 +37,6 @@ class Category extends Model
      */
     public function getImageUrlAttribute(): ?string
     {
-        return $this->image_path ? asset('storage/' . $this->image_path) : null;
+        return $this->image_path ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->image_path) : null;
     }
 }
