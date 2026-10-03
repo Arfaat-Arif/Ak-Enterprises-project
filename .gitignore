@@ -1,0 +1,23 @@
+# Environment files
+**/.env
+**/.env.*
+!**/.env.example
+
+# Laravel
+backend-laravel/backend/vendor/
+backend-laravel/backend/storage/*.key
+backend-laravel/backend/storage/app/
+backend-laravel/backend/storage/framework/
+backend-laravel/backend/storage/logs/
+backend-laravel/backend/bootstrap/cache/
+
+# React / Node
+frontend-react-ts/frontend/node_modules/
+frontend-react-ts/frontend/dist/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log

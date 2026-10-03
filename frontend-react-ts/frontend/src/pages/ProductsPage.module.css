@@ -1,0 +1,17 @@
+.page {
+  padding-block: clamp(3rem, 7vw, 6rem);
+  background: #f7f7f5;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+@media (max-width: 780px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
