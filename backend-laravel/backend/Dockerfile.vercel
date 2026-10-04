@@ -1,0 +1,45 @@
+# FrankenPHP runtime with PHP 8.4
+FROM dunglas/frankenphp:1-php8.4-bookworm AS base
+
+RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
+    && install-php-extensions intl zip pdo_mysql mbstring xml ctype json
+
+# Install production dependencies, then run Laravel package discovery after
+# the full application has been copied into the build stage.
+FROM base AS dependencies
+
+WORKDIR /app
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY composer.json composer.lock ./
+
+RUN composer install \
+    --no-dev \
+    --no-interaction \
+    --no-progress \
+    --no-scripts \
+    --optimize-autoloader \
+    --prefer-dist
+
+COPY . .
+
+RUN mkdir -p \
+        storage/framework/cache \
+        storage/framework/sessions \
+        storage/framework/views \
+        storage/logs \
+        bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache \
+    && composer dump-autoload --no-dev --classmap-authoritative
+
+# Final image contains the Laravel app and its production dependencies.
+FROM base AS app
+
+WORKDIR /app
+COPY --from=dependencies /app /app
+
+ENV PORT=80
+
+COPY Caddyfile /etc/caddy/Caddyfile
+
+CMD ["frankenphp", "run", "--config", "/etc/caddy/Caddyfile"]
