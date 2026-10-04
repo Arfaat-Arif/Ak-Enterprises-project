@@ -18,5 +18,5 @@ yarn-error.log
 *.swo
 *~
 .vscode
-composer.lock
 vendor/
+.vercel
