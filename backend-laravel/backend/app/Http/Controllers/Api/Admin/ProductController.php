@@ -91,9 +91,10 @@ class ProductController extends Controller
         $accessories = is_string($request->input('accessories')) ? json_decode($request->input('accessories'), true) : $request->input('accessories', []);
 
         $uploadedPaths = [];
+        $requestId = uniqid('img-', true);
 
         try {
-            $product = DB::transaction(function () use ($validated, $specs, $accessories, $request, &$uploadedPaths) {
+            $product = DB::transaction(function () use ($validated, $specs, $accessories, $request, &$uploadedPaths, $requestId) {
                 $product = Product::create([
                     ...$validated,
                     'slug'        => Str::slug($validated['name']),
@@ -105,7 +106,7 @@ class ProductController extends Controller
                 ]);
 
                 foreach ($request->file('images', []) as $index => $file) {
-                    $imagePath = $this->storeProductImage($file, $uploadedPaths, 'create');
+                    $imagePath = $this->storeProductImage($file, $uploadedPaths, 'create', $requestId);
 
                     ProductImage::create([
                         'product_id' => $product->id,
@@ -118,11 +119,11 @@ class ProductController extends Controller
                 return $product;
             });
         } catch (ProductImageStorageException) {
-            $this->cleanupUploadedProductImages($uploadedPaths, 'create');
+            $this->cleanupUploadedProductImages($uploadedPaths, 'create', $requestId);
 
             return response()->json(['message' => 'Unable to store product image.'], 500);
         } catch (Throwable $exception) {
-            $this->cleanupUploadedProductImages($uploadedPaths, 'create');
+            $this->cleanupUploadedProductImages($uploadedPaths, 'create', $requestId);
 
             throw $exception;
         }
@@ -162,12 +163,13 @@ class ProductController extends Controller
         unset($validated['images']);
 
         $uploadedPaths = [];
+        $requestId = uniqid('img-', true);
 
         try {
-            DB::transaction(function () use ($request, $product, $validated, &$uploadedPaths) {
+            DB::transaction(function () use ($request, $product, $validated, &$uploadedPaths, $requestId) {
                 foreach ($request->file('images', []) as $index => $file) {
                     $existingCount = $product->images()->count();
-                    $imagePath = $this->storeProductImage($file, $uploadedPaths, 'update');
+                    $imagePath = $this->storeProductImage($file, $uploadedPaths, 'update', $requestId);
 
                     ProductImage::create([
                         'product_id' => $product->id,
@@ -180,11 +182,11 @@ class ProductController extends Controller
                 $product->update($validated);
             });
         } catch (ProductImageStorageException) {
-            $this->cleanupUploadedProductImages($uploadedPaths, 'update');
+            $this->cleanupUploadedProductImages($uploadedPaths, 'update', $requestId);
 
             return response()->json(['message' => 'Unable to store product image.'], 500);
         } catch (Throwable $exception) {
-            $this->cleanupUploadedProductImages($uploadedPaths, 'update');
+            $this->cleanupUploadedProductImages($uploadedPaths, 'update', $requestId);
 
             throw $exception;
         }
@@ -196,7 +198,7 @@ class ProductController extends Controller
      * Store an image with the same generated products/{hash}.{extension} path
      * used by UploadedFile::store(), recording the attempted key for rollback cleanup.
      */
-    private function storeProductImage(UploadedFile $file, array &$uploadedPaths, string $operation): string
+    private function storeProductImage(UploadedFile $file, array &$uploadedPaths, string $operation, string $requestId): string
     {
         $fileName = $file->hashName();
         $attemptedPath = 'products/'.$fileName;
@@ -205,7 +207,7 @@ class ProductController extends Controller
         try {
             $imagePath = $file->storeAs('products', $fileName, 'public');
         } catch (Throwable $exception) {
-            $this->logStorageFailure($exception, $operation);
+            $this->logStorageFailure($exception, $operation, 'write', $requestId);
 
             throw new ProductImageStorageException;
         }
@@ -213,6 +215,7 @@ class ProductController extends Controller
         if (! is_string($imagePath) || $imagePath === '') {
             Log::channel('stderr')->error('Product image storage returned no path.', [
                 'operation' => $operation,
+                'request_id' => $requestId,
             ]);
 
             throw new ProductImageStorageException;
@@ -223,22 +226,23 @@ class ProductController extends Controller
         return $imagePath;
     }
 
-    private function cleanupUploadedProductImages(array $uploadedPaths, string $operation): void
+    private function cleanupUploadedProductImages(array $uploadedPaths, string $operation, string $requestId): void
     {
         foreach (array_reverse(array_values(array_unique($uploadedPaths))) as $path) {
             try {
                 if (! Storage::disk('public')->delete($path)) {
                     Log::channel('stderr')->warning('Product image cleanup returned no confirmation.', [
                         'operation' => $operation,
+                        'request_id' => $requestId,
                     ]);
                 }
             } catch (Throwable $exception) {
-                $this->logStorageFailure($exception, $operation, 'cleanup');
+                $this->logStorageFailure($exception, $operation, 'cleanup', $requestId);
             }
         }
     }
 
-    private function logStorageFailure(Throwable $exception, string $operation, string $action = 'write'): void
+    private function logStorageFailure(Throwable $exception, string $operation, string $action = 'write', string $requestId = ''): void
     {
         $exceptionClasses = [];
         $awsErrorCode = null;
@@ -275,6 +279,7 @@ class ProductController extends Controller
         Log::channel('stderr')->error($action === 'cleanup' ? 'Product image cleanup failed.' : 'Product image storage failed.', [
             'operation' => $operation,
             'action' => $action,
+            'request_id' => $requestId,
             'exception_class' => get_class($exception),
             'exception_chain' => array_values(array_unique($exceptionClasses)),
             'aws_error_code' => $awsErrorCode,
