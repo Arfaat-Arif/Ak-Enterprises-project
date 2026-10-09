@@ -14,6 +14,15 @@ export const apiClient = axios.create({
 // never sets this — only the /admin login flow does — so this is a no-op
 // for regular visitors.
 apiClient.interceptors.request.use((config) => {
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    let containsFile = false;
+    config.data.forEach((value) => {
+      if (typeof value !== 'string') containsFile = true;
+    });
+
+    if (containsFile) config.timeout = API_CONFIG.uploadTimeout;
+  }
+
   const token = typeof localStorage !== 'undefined' && typeof localStorage.getItem === 'function'
     ? localStorage.getItem('admin_token')
     : null;
