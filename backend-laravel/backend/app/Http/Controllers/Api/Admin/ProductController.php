@@ -2,18 +2,47 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Exceptions\ProductImageStorageException;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ProductResource;
 use App\Models\Product;
 use App\Models\ProductImage;
+use Aws\Exception\AwsException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Throwable;
 
 class ProductController extends Controller
 {
+    private const SAFE_AWS_ERROR_CODES = [
+        'AccessDenied',
+        'AccessDeniedException',
+        'AuthorizationHeaderMalformed',
+        'BadRequest',
+        'EntityTooLarge',
+        'ExpiredToken',
+        'InternalError',
+        'InvalidAccessKeyId',
+        'InvalidArgument',
+        'InvalidRequest',
+        'InvalidToken',
+        'NoSuchBucket',
+        'NoSuchKey',
+        'PermanentRedirect',
+        'RequestTimeTooSkewed',
+        'RequestTimeout',
+        'ServiceUnavailable',
+        'SignatureDoesNotMatch',
+        'SlowDown',
+        'XAmzContentSHA256Mismatch',
+    ];
+
     public function index(Request $request): AnonymousResourceCollection
     {
         $products = Product::query()
@@ -61,33 +90,47 @@ class ProductController extends Controller
         $specs       = is_string($request->input('specs'))       ? json_decode($request->input('specs'), true)       : $request->input('specs', []);
         $accessories = is_string($request->input('accessories')) ? json_decode($request->input('accessories'), true) : $request->input('accessories', []);
 
-        $product = Product::create([
-            ...$validated,
-            'slug'        => Str::slug($validated['name']),
-            'specs'       => $specs ?? [],
-            'accessories' => $accessories ?? [],
-            'is_featured' => $validated['is_featured'] ?? false,
-            'is_active'   => $validated['is_active'] ?? true,
-            'sort_order'  => $validated['sort_order'] ?? 0,
-        ]);
+        $uploadedPaths = [];
 
-        foreach ($request->file('images', []) as $index => $file) {
-            $imagePath = $file->store('products', 'public');
+        try {
+            $product = DB::transaction(function () use ($validated, $specs, $accessories, $request, &$uploadedPaths) {
+                $product = Product::create([
+                    ...$validated,
+                    'slug'        => Str::slug($validated['name']),
+                    'specs'       => $specs ?? [],
+                    'accessories' => $accessories ?? [],
+                    'is_featured' => $validated['is_featured'] ?? false,
+                    'is_active'   => $validated['is_active'] ?? true,
+                    'sort_order'  => $validated['sort_order'] ?? 0,
+                ]);
 
-            abort_if($imagePath === false, 500, 'Unable to store product image.');
+                foreach ($request->file('images', []) as $index => $file) {
+                    $imagePath = $this->storeProductImage($file, $uploadedPaths, 'create');
 
-            ProductImage::create([
-                'product_id' => $product->id,
-                'image_path' => $imagePath,
-                'alt'        => $product->name,
-                'sort_order' => $index,
-            ]);
+                    ProductImage::create([
+                        'product_id' => $product->id,
+                        'image_path' => $imagePath,
+                        'alt'        => $product->name,
+                        'sort_order' => $index,
+                    ]);
+                }
+
+                return $product;
+            });
+        } catch (ProductImageStorageException) {
+            $this->cleanupUploadedProductImages($uploadedPaths, 'create');
+
+            return response()->json(['message' => 'Unable to store product image.'], 500);
+        } catch (Throwable $exception) {
+            $this->cleanupUploadedProductImages($uploadedPaths, 'create');
+
+            throw $exception;
         }
 
         return (new ProductResource($product->load('images', 'category')))->response()->setStatusCode(201);
     }
 
-    public function update(Request $request, Product $product): ProductResource
+    public function update(Request $request, Product $product): ProductResource|JsonResponse
     {
         $validated = $request->validate([
             'category_id'     => ['sometimes', 'exists:categories,id'],
@@ -116,25 +159,128 @@ class ProductController extends Controller
             $validated['accessories'] = is_string($request->input('accessories')) ? json_decode($request->input('accessories'), true) : $request->input('accessories', []);
         }
 
-        // Upload any new images
-        foreach ($request->file('images', []) as $index => $file) {
-            $existingCount = $product->images()->count();
-            $imagePath = $file->store('products', 'public');
+        unset($validated['images']);
 
-            abort_if($imagePath === false, 500, 'Unable to store product image.');
+        $uploadedPaths = [];
 
-            ProductImage::create([
-                'product_id' => $product->id,
-                'image_path' => $imagePath,
-                'alt'        => $product->name,
-                'sort_order' => $existingCount + $index,
-            ]);
+        try {
+            DB::transaction(function () use ($request, $product, $validated, &$uploadedPaths) {
+                foreach ($request->file('images', []) as $index => $file) {
+                    $existingCount = $product->images()->count();
+                    $imagePath = $this->storeProductImage($file, $uploadedPaths, 'update');
+
+                    ProductImage::create([
+                        'product_id' => $product->id,
+                        'image_path' => $imagePath,
+                        'alt'        => $product->name,
+                        'sort_order' => $existingCount + $index,
+                    ]);
+                }
+
+                $product->update($validated);
+            });
+        } catch (ProductImageStorageException) {
+            $this->cleanupUploadedProductImages($uploadedPaths, 'update');
+
+            return response()->json(['message' => 'Unable to store product image.'], 500);
+        } catch (Throwable $exception) {
+            $this->cleanupUploadedProductImages($uploadedPaths, 'update');
+
+            throw $exception;
         }
 
-        unset($validated['images']);
-        $product->update($validated);
-
         return new ProductResource($product->load('images', 'category'));
+    }
+
+    /**
+     * Store an image with the same generated products/{hash}.{extension} path
+     * used by UploadedFile::store(), recording the attempted key for rollback cleanup.
+     */
+    private function storeProductImage(UploadedFile $file, array &$uploadedPaths, string $operation): string
+    {
+        $fileName = $file->hashName();
+        $attemptedPath = 'products/'.$fileName;
+        $uploadedPaths[] = $attemptedPath;
+
+        try {
+            $imagePath = $file->storeAs('products', $fileName, 'public');
+        } catch (Throwable $exception) {
+            $this->logStorageFailure($exception, $operation);
+
+            throw new ProductImageStorageException;
+        }
+
+        if (! is_string($imagePath) || $imagePath === '') {
+            Log::channel('stderr')->error('Product image storage returned no path.', [
+                'operation' => $operation,
+            ]);
+
+            throw new ProductImageStorageException;
+        }
+
+        $uploadedPaths[array_key_last($uploadedPaths)] = $imagePath;
+
+        return $imagePath;
+    }
+
+    private function cleanupUploadedProductImages(array $uploadedPaths, string $operation): void
+    {
+        foreach (array_reverse(array_values(array_unique($uploadedPaths))) as $path) {
+            try {
+                if (! Storage::disk('public')->delete($path)) {
+                    Log::channel('stderr')->warning('Product image cleanup returned no confirmation.', [
+                        'operation' => $operation,
+                    ]);
+                }
+            } catch (Throwable $exception) {
+                $this->logStorageFailure($exception, $operation, 'cleanup');
+            }
+        }
+    }
+
+    private function logStorageFailure(Throwable $exception, string $operation, string $action = 'write'): void
+    {
+        $exceptionClasses = [];
+        $awsErrorCode = null;
+        $awsHttpStatus = null;
+        $curlErrorCode = null;
+        $current = $exception;
+
+        for ($depth = 0; $current !== null && $depth < 8; $depth++, $current = $current->getPrevious()) {
+            $exceptionClasses[] = get_class($current);
+
+            if ($current instanceof AwsException) {
+                if ($awsErrorCode === null) {
+                    $candidate = $current->getAwsErrorCode();
+
+                    if (is_string($candidate) && in_array($candidate, self::SAFE_AWS_ERROR_CODES, true)) {
+                        $awsErrorCode = $candidate;
+                    }
+                }
+
+                if ($awsHttpStatus === null) {
+                    $statusCode = $current->getResponse()?->getStatusCode();
+
+                    if (is_int($statusCode) && $statusCode >= 100 && $statusCode <= 599) {
+                        $awsHttpStatus = $statusCode;
+                    }
+                }
+            }
+
+            if ($curlErrorCode === null && preg_match('/cURL error\\s+([0-9]{1,3})\\b/i', $current->getMessage(), $matches)) {
+                $curlErrorCode = $matches[1];
+            }
+        }
+
+        Log::channel('stderr')->error('Product image storage failed.', [
+            'operation' => $operation,
+            'action' => $action,
+            'exception_class' => get_class($exception),
+            'exception_chain' => array_values(array_unique($exceptionClasses)),
+            'aws_error_code' => $awsErrorCode,
+            'aws_http_status' => $awsHttpStatus,
+            'curl_error_code' => $curlErrorCode,
+        ]);
     }
 
     public function destroyImage(Product $product, ProductImage $image): JsonResponse

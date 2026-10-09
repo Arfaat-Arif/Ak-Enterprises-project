@@ -6,12 +6,16 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\User;
+use Aws\CommandInterface;
+use Aws\Exception\AwsException;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
+use Psr\Log\LoggerInterface;
 use Tests\TestCase;
 
 class ProductImageStorageTest extends TestCase
@@ -40,41 +44,82 @@ class ProductImageStorageTest extends TestCase
     public function test_failed_product_image_storage_returns_error_without_creating_image_record(): void
     {
         $category = $this->createCategory();
-        $this->mockFailedStorage();
+        $image = UploadedFile::fake()->create('radio.jpg', 100, 'image/jpeg');
+        $expectedPath = 'products/'.$image->hashName();
+        $this->mockFailedStorage($expectedPath);
+        $logger = Mockery::mock(LoggerInterface::class);
+        $logger->shouldReceive('error')
+            ->once()
+            ->with('Product image storage returned no path.', Mockery::on(
+                fn (array $context) => ($context['operation'] ?? null) === 'create'
+            ));
+        Log::shouldReceive('channel')->once()->with('stderr')->andReturn($logger);
 
         $response = $this->withToken($this->adminToken())->postJson('/api/admin/products', [
             ...$this->productData($category->id),
-            'images' => [UploadedFile::fake()->create('radio.jpg', 100, 'image/jpeg')],
+            'images' => [$image],
         ]);
 
         $response->assertStatus(500)
             ->assertJsonPath('message', 'Unable to store product image.');
-        $product = Product::where('sku', 'TEST-RADIO-1')->firstOrFail();
-        $this->assertDatabaseMissing('product_images', ['product_id' => $product->id]);
+        $this->assertDatabaseMissing('products', ['sku' => 'TEST-RADIO-1']);
+        $this->assertDatabaseMissing('product_images', ['image_path' => $expectedPath]);
     }
 
     public function test_failed_product_image_update_returns_error_without_creating_image_record(): void
     {
         $category = $this->createCategory();
         $product = Product::create($this->productData($category->id));
-        $this->mockFailedStorage();
+        $existingImage = ProductImage::create([
+            'product_id' => $product->id,
+            'image_path' => 'products/existing-image.jpg',
+            'alt' => $product->name,
+            'sort_order' => 0,
+        ]);
+        $image = UploadedFile::fake()->create('radio.jpg', 100, 'image/jpeg');
+        $expectedPath = 'products/'.$image->hashName();
+        $this->mockFailedStorage($expectedPath, true);
+        $logger = Mockery::mock(LoggerInterface::class);
+        $logger->shouldReceive('error')
+            ->once()
+            ->with('Product image storage failed.', Mockery::on(function (array $context) {
+                return ($context['operation'] ?? null) === 'update'
+                    && ($context['action'] ?? null) === 'write'
+                    && in_array(AwsException::class, $context['exception_chain'] ?? [], true)
+                    && ($context['aws_error_code'] ?? null) === 'AccessDenied'
+                    && ! array_key_exists('exception_message', $context)
+                    && ! str_contains(json_encode($context), 'diagnostic=must-not-be-logged');
+            }));
+        Log::shouldReceive('channel')->once()->with('stderr')->andReturn($logger);
 
         $response = $this->withToken($this->adminToken())->postJson("/api/admin/products/{$product->id}", [
             '_method' => 'PUT',
-            'images' => [UploadedFile::fake()->create('radio.jpg', 100, 'image/jpeg')],
+            'images' => [$image],
         ]);
 
         $response->assertStatus(500)
-            ->assertJsonPath('message', 'Unable to store product image.');
-        $this->assertDatabaseMissing('product_images', ['product_id' => $product->id]);
+            ->assertJsonPath('message', 'Unable to store product image.')
+            ->assertDontSee('credential=should-not-be-logged');
+        $this->assertDatabaseHas('product_images', ['id' => $existingImage->id]);
+        $this->assertDatabaseMissing('product_images', ['image_path' => $expectedPath]);
     }
 
-    private function mockFailedStorage(): void
+    private function mockFailedStorage(string $expectedPath, bool $throwException = false): void
     {
         $disk = Mockery::mock(Filesystem::class);
-        $disk->shouldReceive('putFileAs')->once()->andReturn(false);
+        if ($throwException) {
+            $exception = new AwsException(
+                'diagnostic=must-not-be-logged',
+                Mockery::mock(CommandInterface::class),
+                ['code' => 'AccessDenied']
+            );
+            $disk->shouldReceive('putFileAs')->once()->andThrow($exception);
+        } else {
+            $disk->shouldReceive('putFileAs')->once()->andReturn(false);
+        }
+        $disk->shouldReceive('delete')->once()->with($expectedPath)->andReturn(true);
 
-        Storage::shouldReceive('disk')->once()->with('public')->andReturn($disk);
+        Storage::shouldReceive('disk')->twice()->with('public')->andReturn($disk);
     }
 
     private function createCategory(): Category
