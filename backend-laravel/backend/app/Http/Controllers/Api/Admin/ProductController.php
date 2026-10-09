@@ -72,9 +72,13 @@ class ProductController extends Controller
         ]);
 
         foreach ($request->file('images', []) as $index => $file) {
+            $imagePath = $file->store('products', 'public');
+
+            abort_if($imagePath === false, 500, 'Unable to store product image.');
+
             ProductImage::create([
                 'product_id' => $product->id,
-                'image_path' => $file->store('products', 'public'),
+                'image_path' => $imagePath,
                 'alt'        => $product->name,
                 'sort_order' => $index,
             ]);
@@ -115,9 +119,13 @@ class ProductController extends Controller
         // Upload any new images
         foreach ($request->file('images', []) as $index => $file) {
             $existingCount = $product->images()->count();
+            $imagePath = $file->store('products', 'public');
+
+            abort_if($imagePath === false, 500, 'Unable to store product image.');
+
             ProductImage::create([
                 'product_id' => $product->id,
-                'image_path' => $file->store('products', 'public'),
+                'image_path' => $imagePath,
                 'alt'        => $product->name,
                 'sort_order' => $existingCount + $index,
             ]);
