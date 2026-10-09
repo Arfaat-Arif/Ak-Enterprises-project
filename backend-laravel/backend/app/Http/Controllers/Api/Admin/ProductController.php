@@ -272,7 +272,7 @@ class ProductController extends Controller
             }
         }
 
-        Log::channel('stderr')->error('Product image storage failed.', [
+        Log::channel('stderr')->error($action === 'cleanup' ? 'Product image cleanup failed.' : 'Product image storage failed.', [
             'operation' => $operation,
             'action' => $action,
             'exception_class' => get_class($exception),
