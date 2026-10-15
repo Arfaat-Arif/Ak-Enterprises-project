@@ -204,8 +204,20 @@ class ProductController extends Controller
         $attemptedPath = 'products/'.$fileName;
         $uploadedPaths[] = $attemptedPath;
 
+        $config = config('filesystems.disks.public');
+        Log::channel('stderr')->info('Product image storage configuration check', [
+            'request_id' => $requestId,
+            'has_key' => !empty($config['key']),
+            'has_secret' => !empty($config['secret']),
+            'has_endpoint' => !empty($config['endpoint']),
+            'has_bucket' => !empty($config['bucket']),
+        ]);
+
         try {
             $imagePath = $file->storeAs('products', $fileName, 'public');
+            Log::channel('stderr')->info('Product image storage operation completed', [
+                'request_id' => $requestId,
+            ]);
         } catch (Throwable $exception) {
             $this->logStorageFailure($exception, $operation, 'write', $requestId);
 
